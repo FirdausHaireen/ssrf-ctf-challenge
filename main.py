@@ -55,11 +55,12 @@ def dev_notes():
     return '''
         <h2>Internal Dev Notes</h2>
         <p>Temporary admin passcode for testing: <code>LetMeIn123</code></p>
-        #don't forget to use X-Internal-Bypass to access the admin page
+        <!-- don't forget to use X-Internal-Bypass to access the admin page -->
     '''
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
+
 
 
 
