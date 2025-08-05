@@ -41,8 +41,8 @@ def admin_login():
 
 @app.route("/admin")
 def admin():
-    client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-    if client_ip == "127.0.0.1":
+    bypass_key = request.headers.get("X-Internal-Bypass")
+    if bypass_key == "letmein":
         return f"<h3>Welcome, Admin!</h3><p>Flag: {FLAG}</p>"
     return "403 Forbidden – You must be internal admin."
 
@@ -59,3 +59,4 @@ def dev_notes():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
+
