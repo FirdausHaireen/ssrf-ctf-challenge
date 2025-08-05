@@ -1,54 +1,57 @@
 from flask import Flask, request, abort
 import requests
+import socket
 import re
 
 app = Flask(__name__)
 
-# SSRF filter: deny common internal IPs
-BLOCKED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "0.0.0.0"
+BLOCKED_IPS = [
+    "127.", "0.", "169.254.", "10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.",
+    "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.",
+    "172.28.", "172.29.", "172.30.", "172.31."
 ]
-
-def is_blocked(url):
-    for host in BLOCKED_HOSTS:
-        if host in url:
-            return True
-    return False
 
 @app.route("/")
 def index():
     return '''
-    <h2>🕵️ SSRF Challenge - Level 2</h2>
-    <p>Enter a URL to fetch:</p>
-    <form method="POST" action="/fetch">
-        <input name="url" style="width:300px"/>
-        <button type="submit">Fetch</button>
-    </form>
+        <h2>SSRF Challenge: The Hidden Gateway</h2>
+        <form action="/preview" method="GET">
+            <label>Enter a URL to fetch:</label><br>
+            <input type="text" name="url" size="50" placeholder="http://example.com"/><br><br>
+            <input type="submit" value="Fetch"/>
+        </form>
     '''
 
-@app.route("/fetch", methods=["POST"])
-def fetch():
-    url = request.form.get("url")
+def is_private_ip(ip):
+    for blocked in BLOCKED_IPS:
+        if ip.startswith(blocked):
+            return True
+    return False
 
-    # Simple filtering to block common localhost references
-    if is_blocked(url.lower()):
-        return "❌ Access to that host is blocked."
+@app.route("/preview")
+def preview():
+    target_url = request.args.get("url")
+    if not target_url:
+        return "Missing URL", 400
 
     try:
-        res = requests.get(url, timeout=3)
-        return f"<pre>{res.text}</pre>"
+        # Parse domain
+        match = re.match(r"^https?://([^/:]+)", target_url)
+        if not match:
+            return "Invalid URL", 400
+        hostname = match.group(1)
+
+        # Resolve IP
+        ip = socket.gethostbyname(hostname)
+        if is_private_ip(ip):
+            return "Access denied: Private IPs are blocked!", 403
+
+        # Request the URL
+        r = requests.get(target_url, timeout=3)
+        return f"<pre>{r.text}</pre>"
     except Exception as e:
-        return f"<b>Error:</b> {e}"
+        return f"Error: {str(e)}", 500
 
-# Internal endpoint, only accessible via SSRF with token
-@app.route("/internal")
-def internal():
-    token = request.headers.get("X-Secret-Token")
-    if token == "SSRF-MASTER":
-        return "🎉 FLAG{bypass_success_and_secret_token}"
-    return abort(403)
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000)
+@app.route("/super-admin")
+def secret_admin():
+    return "Flag: FLAG{ssrf_bypass_wizard}"
