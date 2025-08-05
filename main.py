@@ -2,7 +2,7 @@ from flask import Flask, request, redirect
 
 app = Flask(__name__)
 
-FLAG = "FLAG{proxy_header_admin_bypass_success}"
+FLAG = "pkb{be_the_admin}"
 
 @app.route("/")
 def index():
@@ -41,11 +41,21 @@ def admin_login():
 
 @app.route("/admin")
 def admin():
-    # Trust boundary flaw: IP spoof via header
     client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
     if client_ip == "127.0.0.1":
         return f"<h3>Welcome, Admin!</h3><p>Flag: {FLAG}</p>"
     return "403 Forbidden – You must be internal admin."
+
+@app.route("/robots.txt")
+def robots():
+    return "User-agent: *\nDisallow: /dev-notes", 200, {"Content-Type": "text/plain"}
+
+@app.route("/dev-notes")
+def dev_notes():
+    return '''
+        <h2>Internal Dev Notes</h2>
+        <p>Temporary admin passcode for testing: <code>LetMeIn123</code></p>
+    '''
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
