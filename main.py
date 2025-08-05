@@ -1,9 +1,8 @@
-
-from flask import Flask, request, redirect, make_response, render_template_string
+from flask import Flask, request, redirect
 
 app = Flask(__name__)
 
-FLAG = "FLAG{logic_flaw_bypass_success}"
+FLAG = "FLAG{proxy_header_admin_bypass_success}"
 
 @app.route("/")
 def index():
@@ -29,7 +28,8 @@ def login():
 def admin_login():
     if request.method == "POST":
         passcode = request.form.get("passcode", "")
-        # No real validation - logic flaw!
+        if passcode != "LetMeIn123":
+            return "Invalid passcode. Access denied."
         return redirect("/admin")
     return '''
         <h2>Admin Login</h2>
@@ -41,16 +41,11 @@ def admin_login():
 
 @app.route("/admin")
 def admin():
-    is_admin = request.cookies.get("is_admin", "false")
-    if is_admin == "true":
+    # Trust boundary flaw: IP spoof via header
+    client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    if client_ip == "127.0.0.1":
         return f"<h3>Welcome, Admin!</h3><p>Flag: {FLAG}</p>"
-    return "403 Forbidden – You're not an admin."
-
-@app.route("/set-admin")
-def set_admin_cookie():
-    resp = make_response("Admin cookie set! Now visit /admin")
-    resp.set_cookie("is_admin", "true")
-    return resp
+    return "403 Forbidden – You must be internal admin."
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
