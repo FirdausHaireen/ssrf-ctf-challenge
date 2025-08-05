@@ -1,57 +1,39 @@
-from flask import Flask, request, abort
+from flask import Flask, request, redirect
 import requests
-import socket
 import re
 
 app = Flask(__name__)
 
-BLOCKED_IPS = [
-    "127.", "0.", "169.254.", "10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.",
-    "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.",
-    "172.28.", "172.29.", "172.30.", "172.31."
-]
+BLOCKED_KEYWORDS = ["127.0.0.1", "localhost", "0.0.0.0"]
 
-@app.route("/")
-def index():
+@app.route('/')
+def home():
     return '''
-        <h2>SSRF Challenge: The Hidden Gateway</h2>
-        <form action="/preview" method="GET">
-            <label>Enter a URL to fetch:</label><br>
+        <h2>SSRF Challenge: Peek Inside</h2>
+        <p>Try accessing an internal-only page using the URL preview tool!</p>
+        <form method="GET" action="/preview">
             <input type="text" name="url" size="50" placeholder="http://example.com"/><br><br>
-            <input type="submit" value="Fetch"/>
+            <input type="submit" value="Preview">
         </form>
     '''
 
-def is_private_ip(ip):
-    for blocked in BLOCKED_IPS:
-        if ip.startswith(blocked):
-            return True
-    return False
-
-@app.route("/preview")
+@app.route('/preview')
 def preview():
-    target_url = request.args.get("url")
-    if not target_url:
-        return "Missing URL", 400
+    url = request.args.get("url")
+
+    if not url:
+        return "No URL provided", 400
+
+    for keyword in BLOCKED_KEYWORDS:
+        if keyword in url:
+            return "Access Denied! Internal URLs are blocked.", 403
 
     try:
-        # Parse domain
-        match = re.match(r"^https?://([^/:]+)", target_url)
-        if not match:
-            return "Invalid URL", 400
-        hostname = match.group(1)
-
-        # Resolve IP
-        ip = socket.gethostbyname(hostname)
-        if is_private_ip(ip):
-            return "Access denied: Private IPs are blocked!", 403
-
-        # Request the URL
-        r = requests.get(target_url, timeout=3)
-        return f"<pre>{r.text}</pre>"
+        resp = requests.get(url, timeout=3)
+        return f"<h4>Preview Output:</h4><pre>{resp.text}</pre>"
     except Exception as e:
-        return f"Error: {str(e)}", 500
+        return f"Error fetching URL: {str(e)}"
 
-@app.route("/super-admin")
-def secret_admin():
-    return "Flag: FLAG{ssrf_bypass_wizard}"
+@app.route('/internal/admin')
+def internal_admin():
+    return "Internal Admin Only! Flag: FLAG{ssrf_preview_succeeded}"
