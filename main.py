@@ -1,38 +1,56 @@
-from flask import Flask, request
-import requests
-import re
+
+from flask import Flask, request, redirect, make_response, render_template_string
 
 app = Flask(__name__)
 
-BLOCKED_KEYWORDS = ["127.0.0.1", "localhost", "0.0.0.0"]
+FLAG = "FLAG{logic_flaw_bypass_success}"
 
-@app.route('/')
-def home():
+@app.route("/")
+def index():
+    return redirect("/login")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username", "").lower()
+        if username == "admin":
+            return redirect("/admin-login")
+        else:
+            return f"Welcome, {username}. You're not admin. No flag for you."
     return '''
-        <h2>SSRF Challenge: Peek Inside</h2>
-        <p>Try accessing an internal-only page using the URL preview tool!</p>
-        <form method="GET" action="/preview">
-            <input type="text" name="url" size="50" placeholder="http://example.com"/><br><br>
-            <input type="submit" value="Preview">
+        <h2>Login</h2>
+        <form method="POST">
+            Username: <input type="text" name="username">
+            <button type="submit">Login</button>
         </form>
     '''
 
-@app.route('/preview')
-def preview():
-    url = request.args.get("url")
-    if not url:
-        return "No URL provided", 400
+@app.route("/admin-login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        passcode = request.form.get("passcode", "")
+        # No real validation - logic flaw!
+        return redirect("/admin")
+    return '''
+        <h2>Admin Login</h2>
+        <form method="POST">
+            Passcode: <input type="password" name="passcode">
+            <button type="submit">Login</button>
+        </form>
+    '''
 
-    for keyword in BLOCKED_KEYWORDS:
-        if keyword in url:
-            return "Access Denied! Internal URLs are blocked.", 403
+@app.route("/admin")
+def admin():
+    is_admin = request.cookies.get("is_admin", "false")
+    if is_admin == "true":
+        return f"<h3>Welcome, Admin!</h3><p>Flag: {FLAG}</p>"
+    return "403 Forbidden – You're not an admin."
 
-    try:
-        resp = requests.get(url, timeout=3)
-        return f"<h4>Preview Output:</h4><pre>{resp.text}</pre>"
-    except Exception as e:
-        return f"Error fetching URL: {str(e)}"
+@app.route("/set-admin")
+def set_admin_cookie():
+    resp = make_response("Admin cookie set! Now visit /admin")
+    resp.set_cookie("is_admin", "true")
+    return resp
 
-@app.route('/internal/admin')
-def internal_admin():
-    return "Internal Admin Panel. Flag: FLAG{ssrf_preview_succeeded}"
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=3000)
