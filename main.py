@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect
+from flask import Flask, request
 import requests
 import re
 
@@ -20,7 +20,6 @@ def home():
 @app.route('/preview')
 def preview():
     url = request.args.get("url")
-
     if not url:
         return "No URL provided", 400
 
@@ -36,4 +35,4 @@ def preview():
 
 @app.route('/internal/admin')
 def internal_admin():
-    return "Internal Admin Only! Flag: FLAG{ssrf_preview_succeeded}"
+    return "Internal Admin Panel. Flag: FLAG{ssrf_preview_succeeded}"
